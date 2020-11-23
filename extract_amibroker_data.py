@@ -29,7 +29,7 @@ vnx_csv_data = pd.read_csv(file, usecols=["ticker"])
 ticker_ids = np.array(vnx_csv_data)
 for ticker in ticker_ids:
     ticker_id = ticker[0]
-    newdf = amibroker_data[(amibroker_data.Ticker == ticker_id)]
-    newdf.drop(['Ticker'], axis=1)
+    newdf = amibroker_data[(amibroker_data.Ticker == ticker_id)].copy()
+    newdf.drop('Ticker', axis=1, inplace=True)
     new_file = path + "/VNX/" + ticker_id + ".csv"
     newdf.to_csv(new_file, index=False)
