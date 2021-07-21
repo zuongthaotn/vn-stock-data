@@ -17,9 +17,9 @@ with open(amibroker_file, "w") as f:
     f.writelines(lines)
 
 if platform.system() == 'Windows':
-    file = path + '\\VNX.csv'
+    file = path + '\\Tickers.csv'
 if platform.system() != 'Windows':
-    file = path + '/VNX.csv'
+    file = path + '/Tickers.csv'
 #
 #
 dateparse = lambda x: datetime.datetime.strptime(x, '%Y%m%d')
