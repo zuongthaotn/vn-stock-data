@@ -1,40 +1,34 @@
+import warnings
+warnings.filterwarnings('ignore')
+
 import pandas as pd
-import platform
-import os
-import numpy as np
+
+import time
 import datetime
 
-path = os.getcwd()
+import vn_realtime_stock_data.stockHistory as stockHistory
 
-amibroker_file = path + '/amibroker_all_data.txt'
+def prepareData(htd):
+    if 'Time' in htd.columns:
+        from datetime import datetime
 
-with open(amibroker_file) as f:
-    lines = f.readlines()
+        htd['DateStr'] = htd.apply(
+            lambda x: datetime.fromtimestamp(x['Time']).strftime("%Y-%m-%d"), axis=1)
 
-lines[0] = "<Ticker>,<DTYYYYMMDD>,<Open>,<High>,<Low>,<Close>,<Volume>\n"
+    htd['Date'] = pd.to_datetime(htd['DateStr'])
+    ticker_data = htd.set_index('Date')
+    ticker_data.drop(columns=['Time', 'DateStr'], inplace=True)
+    return ticker_data
 
-with open(amibroker_file, "w") as f:
-    f.writelines(lines)
+if __name__ == "__main__":
+    ticker = "FPT"
+    date_to = "31/12/2024"
+    timestamp_to = time.mktime(datetime.datetime.strptime(date_to, "%d/%m/%Y").timetuple())
+    htd = stockHistory.getStockHistoryData(ticker, 1, timestamp_to)
+    prepared_data = prepareData(htd)
+    save_data = prepared_data.dropna()
 
-if platform.system() == 'Windows':
-    file = path + '\\VNX.csv'
-if platform.system() != 'Windows':
-    file = path + '/VNX.csv'
-#
-#
-dateparse = lambda x: datetime.datetime.strptime(x, '%Y%m%d')
-amibroker_data = pd.read_csv(amibroker_file, parse_dates=['<DTYYYYMMDD>'], date_parser=dateparse)
-amibroker_data.columns = ['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume']
-
-ticker_ids = ['ticker']
-for index, ticker in amibroker_data.Ticker.iteritems():
-    if len(ticker) == 3:
-        if not ticker in ticker_ids:
-            if ticker.find('^') == -1:
-                ticker_ids.append(ticker)
-
-
-data = np.asarray(ticker_ids)
-data_r = data.reshape(len(data), 1)
-new_file = path + "/Tickers.csv"
-np.savetxt(new_file, data_r, fmt="%s", delimiter=",")
+    from pathlib import Path
+    current_folder = Path(__file__).parent
+    save_data.to_csv(str(current_folder) + '/VNX/' + ticker + '.csv')
+    exit()
