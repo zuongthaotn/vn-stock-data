@@ -57,9 +57,22 @@ def prepareData(htd):
     htd['upper_bb'] = htd["ma_20"] + 2 * htd["price_std"]
     htd['lower_bb'] = htd["ma_20"] - 2 * htd["price_std"]
     htd['rsi'] = ta.rsi(htd["Close"], length=14)
+    htd['cross_pivot'] = htd.apply(lambda row: cal_cross(row), axis=1)
 
     htd.dropna(inplace=True)
     return htd
+
+
+def cal_cross(row):
+    result = ''
+    if row['prev_Close'] < row['S5'] < row['Close'] or \
+            row['prev_Close'] < row['S4'] < row['Close'] or row['prev_Close'] < row['S3'] < row['Close'] or \
+            row['prev_Close'] < row['S2'] < row['Close'] or row['prev_Close'] < row['S1'] < row['Close'] \
+            or row['prev_Close'] < row['P'] < row['Close'] or row['prev_Close'] < row['R1'] < row['Close'] \
+            or row['prev_Close'] < row['R2'] < row['Close'] or row['prev_Close'] < row['R3'] < row['Close'] \
+            or row['prev_Close'] < row['R4'] < row['Close'] or row['prev_Close'] < row['R5'] < row['Close']:
+        result = 'cross'
+    return result
 
 
 def cal_first_open(tick):
