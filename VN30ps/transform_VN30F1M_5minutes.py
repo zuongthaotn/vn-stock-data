@@ -71,7 +71,14 @@ def cal_cross(row):
             or row['prev_Close'] < row['P'] < row['Close'] or row['prev_Close'] < row['R1'] < row['Close'] \
             or row['prev_Close'] < row['R2'] < row['Close'] or row['prev_Close'] < row['R3'] < row['Close'] \
             or row['prev_Close'] < row['R4'] < row['Close'] or row['prev_Close'] < row['R5'] < row['Close']:
-        result = 'cross'
+        result = 'cross_up'
+    elif row['prev_Close'] > row['S5'] > row['Close'] or \
+            row['prev_Close'] > row['S4'] > row['Close'] or row['prev_Close'] > row['S3'] > row['Close'] or \
+            row['prev_Close'] > row['S2'] > row['Close'] or row['prev_Close'] > row['S1'] > row['Close'] \
+            or row['prev_Close'] > row['P'] > row['Close'] or row['prev_Close'] > row['R1'] > row['Close'] \
+            or row['prev_Close'] > row['R2'] > row['Close'] or row['prev_Close'] > row['R3'] > row['Close'] \
+            or row['prev_Close'] > row['R4'] > row['Close'] or row['prev_Close'] > row['R5'] > row['Close']:
+        result = 'cross_down'
     return result
 
 
