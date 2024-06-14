@@ -26,12 +26,12 @@ def prepareData(htd):
     _1_d_df['First_Close'] = _1_d_df['Close']
     _1_d_df['Second_Open'] = _1_d_df['Open']
     _1_d_df['Second_Close'] = _1_d_df['Close']
+    _1_d_df['Highest'] = _1_d_df['High']
+    _1_d_df['Lowest'] = _1_d_df['Low']
     _1_d_df = _1_d_df.resample("D").agg({
-        'Open': 'first',
+        'Highest': 'max',
+        'Lowest': 'min',
         'Close': 'last',
-        'High': 'max',
-        'Low': 'min',
-        'Volume': 'sum',
         'First_Open': cal_first_open,
         'First_Close': cal_first_close,
         'Second_Open': cal_second_open,
@@ -40,7 +40,7 @@ def prepareData(htd):
     _1_d_df.dropna(inplace=True)
     _1_d_df = cal_pivots(_1_d_df)
     _1_d_df = _1_d_df[['P', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'First_Open',
-                       'First_Close', 'Second_Open', 'Second_Close']]
+                       'First_Close', 'Second_Open', 'Second_Close', 'Highest', 'Lowest']]
     _1_d_df.dropna(inplace=True)
 
     htd = htd.assign(time_d=pd.PeriodIndex(htd.index, freq='1D').to_timestamp())
@@ -57,13 +57,47 @@ def prepareData(htd):
     htd['upper_bb'] = htd["ma_20"] + 2 * htd["price_std"]
     htd['lower_bb'] = htd["ma_20"] - 2 * htd["price_std"]
     htd['rsi'] = ta.rsi(htd["Close"], length=14)
-    htd['cross_pivot'] = htd.apply(lambda row: cal_cross(row), axis=1)
+    htd['cross_pivot'] = htd.apply(lambda x: cal_cross_pivot(x), axis=1)
+    htd['ema_cross'] = htd.apply(lambda x: cal_ema_cross(x), axis=1)
+    htd['ibs'] = htd.apply(
+        lambda x: (1 if (x["High"] == x["Low"]) else (x["Close"] - x["Low"]) / (x["High"] - x["Low"])), axis=1)
+    htd['signal_strength'] = 0
+    htd['momentum'] = ''
+    htd['signal'] = ''
+
+    for i, row in htd.iterrows():
+        current_time = row.name
+        current_date = current_time.strftime('%Y-%m-%d ').format()
+        today_data = htd[(htd.index > current_date + ' 08:00:00') & (htd.index < current_time)]
+        max_close = today_data['prev_Close'].max()
+        min_close = today_data['prev_Close'].min()
+        if row['Close'] >= row['Open']:
+            momentum = row['Close'] - min_close
+        else:
+            momentum = max_close - row['Close']
+
+        if row['Close'] > row['Highest'] - 3:
+            htd.at[i, 'signal'] = 'short'
+            htd.at[i, 'signal_strength'] = 3.1 - (row['Highest'] - row['Close'])
+        elif row['Close'] < row['Lowest'] + 3:
+            htd.at[i, 'signal'] = 'long'
+            htd.at[i, 'signal_strength'] = 3.1 - (row['Close'] - row['Lowest'])
+        htd.at[i, 'momentum'] = momentum
 
     htd.dropna(inplace=True)
     return htd
 
 
-def cal_cross(row):
+def cal_ema_cross(row):
+    result = ''
+    if row['ema_f_shift'] < row['ema_l_shift'] and row['ema_f'] > row['ema_l']:
+        result = 'cross_up'
+    elif row['ema_f_shift'] > row['ema_l_shift'] and row['ema_f'] < row['ema_l']:
+        result = 'cross_down'
+    return result
+
+
+def cal_cross_pivot(row):
     result = ''
     if row['prev_Close'] < row['S5'] < row['Close'] or \
             row['prev_Close'] < row['S4'] < row['Close'] or row['prev_Close'] < row['S3'] < row['Close'] or \
@@ -176,11 +210,9 @@ def cal_s6(row):
 
 
 def cal_pivots(_1_d_df):
-    _1_d_df['High_s'] = _1_d_df['High'].shift(1)
-    _1_d_df['Low_s'] = _1_d_df['Low'].shift(1)
+    _1_d_df['High_s'] = _1_d_df['Highest'].shift(1)
+    _1_d_df['Low_s'] = _1_d_df['Lowest'].shift(1)
     _1_d_df['Close_s'] = _1_d_df['Close'].shift(1)
-    _1_d_df['Height_s'] = _1_d_df['High_s'] - _1_d_df['Low_s']
-    _1_d_df['Volume_s'] = _1_d_df['Volume'].shift(1)
 
     _1_d_df['P'] = _1_d_df.apply(
         lambda row: cal_pivot(row), axis=1)
@@ -214,7 +246,5 @@ def cal_pivots(_1_d_df):
 if __name__ == "__main__":
     csv_file = str(STOCK_DATA_DIR) + '/VN30F1M_5minutes.csv'
     data = pd.read_csv(csv_file, index_col=0, parse_dates=True)
-    data['ibs'] = data.apply(
-        lambda x: (1 if (x["High"] == x["Low"]) else (x["Close"] - x["Low"]) / (x["High"] - x["Low"])), axis=1)
     transformed_data = prepareData(data)
     transformed_data.to_csv(str(STOCK_DATA_DIR) + '/VN30F1M_5minutes_transform.csv')
