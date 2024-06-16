@@ -37,6 +37,7 @@ def prepareData(htd):
         'Second_Open': cal_second_open,
         'Second_Close': cal_second_close
     })
+
     _1_d_df.dropna(inplace=True)
     _1_d_df = cal_pivots(_1_d_df)
     _1_d_df = _1_d_df[['P', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'First_Open',
@@ -61,31 +62,29 @@ def prepareData(htd):
     htd['ema_cross'] = htd.apply(lambda x: cal_ema_cross(x), axis=1)
     htd['ibs'] = htd.apply(
         lambda x: (1 if (x["High"] == x["Low"]) else (x["Close"] - x["Low"]) / (x["High"] - x["Low"])), axis=1)
-    htd['signal_strength'] = 0
-    htd['momentum'] = ''
-    htd['signal'] = ''
-
-    for i, row in htd.iterrows():
-        current_time = row.name
-        current_date = current_time.strftime('%Y-%m-%d ').format()
-        today_data = htd[(htd.index > current_date + ' 08:00:00') & (htd.index < current_time)]
-        max_close = today_data['prev_Close'].max()
-        min_close = today_data['prev_Close'].min()
-        if row['Close'] >= row['Open']:
-            momentum = row['Close'] - min_close
-        else:
-            momentum = max_close - row['Close']
-
-        if row['Close'] > row['Highest'] - 3:
-            htd.at[i, 'signal'] = 'short'
-            htd.at[i, 'signal_strength'] = 3.1 - (row['Highest'] - row['Close'])
-        elif row['Close'] < row['Lowest'] + 3:
-            htd.at[i, 'signal'] = 'long'
-            htd.at[i, 'signal_strength'] = 3.1 - (row['Close'] - row['Lowest'])
-        htd.at[i, 'momentum'] = momentum
 
     htd.dropna(inplace=True)
     return htd
+
+
+def cal_signal(row):
+    if row['Close'] > row['Highest'] - 3:
+        signal = 'short'
+        signal_strength = 3.1 - (row['Highest'] - row['Close'])
+    elif row['Close'] < row['Lowest'] + 3:
+        signal = 'long'
+        signal_strength = 3.1 - (row['Close'] - row['Lowest'])
+    return {'signal': signal, 'signal_strength': signal_strength}
+
+
+def cal_momentum_v1(row, today_data):
+    max_close = today_data['prev_Close'].max()
+    min_close = today_data['prev_Close'].min()
+    if row['Close'] >= row['Open']:
+        momentum = row['Close'] - min_close
+    else:
+        momentum = max_close - row['Close']
+    return momentum
 
 
 def cal_ema_cross(row):
@@ -118,22 +117,26 @@ def cal_cross_pivot(row):
 
 def cal_first_open(tick):
     tick = tick[100 * tick.index.hour + tick.index.minute == 900]
-    return tick
+    if len(tick):
+        return tick[0]
 
 
 def cal_first_close(tick):
     tick = tick[100 * tick.index.hour + tick.index.minute == 900]
-    return tick
+    if len(tick):
+        return tick[0]
 
 
 def cal_second_open(tick):
     tick = tick[100 * tick.index.hour + tick.index.minute == 905]
-    return tick
+    if len(tick):
+        return tick[0]
 
 
 def cal_second_close(tick):
     tick = tick[100 * tick.index.hour + tick.index.minute == 905]
-    return tick
+    if len(tick):
+        return tick[0]
 
 
 def cal_pivot(row):
